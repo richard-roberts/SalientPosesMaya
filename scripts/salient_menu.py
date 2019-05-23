@@ -112,9 +112,7 @@ class SalientPosesDialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             vbox = salient_utils.UIBuilder.vertical_box(parent=self)
 
             # OpenCL device choice
-            cmds.loadPlugin("SalientPosesMaya")
             listed_devices = [v for v in cmds.salientOpenCLInfo().split("\n") if v != ""]
-            cmds.unloadPlugin("SalientPosesMaya")
             hbox = salient_utils.UIBuilder.horizontal_box(add_to=vbox)
             salient_utils.UIBuilder.label(hbox, "OpenCL Device")
             self.opencl_device_combo = salient_utils.UIBuilder.make_combo(hbox, listed_devices)

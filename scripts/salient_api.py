@@ -37,13 +37,11 @@ def select_keyframes(cl_platform_ix, cl_device_ix, start, end, fixed_keyframes):
     dimensions = SalientPoses.get_dimensions()
 
     # Select
-    cmds.loadPlugin("SalientPosesMaya")
     result = cmds.salientSelect(
         cl_platform_ix, cl_device_ix,
         start, end,
         anim_data, dimensions, fixed_keyframes
     )
-    cmds.unloadPlugin("SalientPosesMaya")
     
     # Compile selections from result
     selections = {}
@@ -65,6 +63,5 @@ def reduce_keyframes(selection):
     cmds.bakeResults(objects, t=(start, end), sampleBy=1, minimizeRotation=True, preserveOutsideKeys=True)
 
     # Reduce
-    cmds.loadPlugin("SalientPosesMaya")
     cmds.salientReduce(start=start, finish=end, selection=selection)
-    cmds.unloadPlugin("SalientPosesMaya")
+
