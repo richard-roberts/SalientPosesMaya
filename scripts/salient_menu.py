@@ -454,6 +454,8 @@ def getMayaMainWindow():
 _win = None
 def show():
     global _win
+    if not "SalientPosesMaya" in cmds.pluginInfo(query=True, listPlugins=True):
+        cmds.error("SalientPosesMaya plugin is not loaded")
     _win = SalientPosesDialog(parent=getMayaMainWindow())
     _win.show(dockable=True)
 
