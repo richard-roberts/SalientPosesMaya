@@ -454,8 +454,7 @@ def getMayaMainWindow():
 _win = None
 def show():
     global _win
-    if _win == None:
-        _win = SalientPosesDialog(parent=getMayaMainWindow())
+    _win = SalientPosesDialog(parent=getMayaMainWindow())
     _win.show(dockable=True)
 
 class SalientPosesDialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
