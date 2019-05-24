@@ -23,7 +23,7 @@ Please report any issues, I'm always happy to help! Click here to join the [Sali
 0. Ensure you have an OpenCL compatible device. Most Intel, AMD, and NVIDIA devices are compatible.
 1. Grab the [latest release](https://github.com/richard-roberts/SalientPosesMaya/releases/tag/0.2)
 2. Install the plugin; here is the [documentation for installing plugins](https://knowledge.autodesk.com/support/maya/learn-explore/caas/CloudHelp/cloudhelp/2018/ENU/Maya-Customizing/files/GUID-FA51BD26-86F3-4F41-9486-2C3CF52B9E17-htm.html).
-3. Load the shelf-script
+3. Load the [shelf file](https://github.com/richard-roberts/SalientPosesMaya/blob/master/shelf_SalientPoses.mel); here is the [documentation for loading a shelf](https://knowledge.autodesk.com/support/maya/learn-explore/caas/CloudHelp/cloudhelp/2016/ENU/Maya/files/GUID-78723F41-2AE8-459D-9785-4D816298754C-htm.html)
 4. Follow along with the [video tutorial](https://www.youtube.com/watch?v=WzFoJoXZO-g)
 
 

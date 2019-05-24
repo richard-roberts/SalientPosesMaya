@@ -55,7 +55,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE ${COMPILE_FLAGS})
 MAYA_PLUGIN(${PROJECT_NAME})
 
 # Include name and version meta-data
-install(TARGETS ${PROJECT_NAME} ${MAYA_TARGET_TYPE} DESTINATION ./plug-ins/SalientPoses)
+install(TARGETS ${PROJECT_NAME} ${MAYA_TARGET_TYPE} DESTINATION ./SalientPoses/plug-ins)
 
 # Finally, copy OpenCL programs into the build's directory.
-install(FILES "../SalientPosesPerformance/src/kernel.cl" DESTINATION ./plug-ins/SalientPoses)
+install(FILES "../SalientPosesPerformance/src/kernel.cl" DESTINATION ./SalientPoses/plug-ins)

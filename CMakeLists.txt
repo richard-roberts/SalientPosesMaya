@@ -17,4 +17,5 @@ add_subdirectory(src)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/module.txt" "${PROJECT_PATH}/${PROJECT_NAME}.txt")
 
 # Copy the scripts directory into the install directory
-install(DIRECTORY scripts DESTINATION ./plug-ins/SalientPoses)
+install(FILES shelf_SalientPoses.mel DESTINATION ./SalientPoses)
+
