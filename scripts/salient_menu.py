@@ -467,9 +467,6 @@ class SalientPosesDialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.saved_animations = []
 
         def init_ui(): 
-            start = int(cmds.playbackOptions(query=True, minTime=True))
-            end = int(cmds.playbackOptions(query=True, maxTime=True))
-
             vbox = UIBuilder.vertical_box(parent=self)
 
             # OpenCL device choice
@@ -478,16 +475,6 @@ class SalientPosesDialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             UIBuilder.label(hbox, "OpenCL Device")
             self.opencl_device_combo = UIBuilder.make_combo(hbox, listed_devices)
             
-            # Start frame box
-            hbox = UIBuilder.horizontal_box(add_to=vbox)
-            UIBuilder.label(hbox, "Start End")
-            self.start_edit = UIBuilder.line_edit(hbox, str(start))
-
-            # End frame box
-            hbox = UIBuilder.horizontal_box(add_to=vbox)
-            UIBuilder.label(hbox, "End Frame")
-            self.end_edit = UIBuilder.line_edit(hbox, str(end))
-
             # Fixed keyframes text field
             hbox = UIBuilder.horizontal_box(add_to=vbox)
             UIBuilder.label(hbox, "Fixed Keyframes")
@@ -506,6 +493,8 @@ class SalientPosesDialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
             # N keyframes slider
             hbox = UIBuilder.horizontal_box(add_to=vbox)
+            start = int(cmds.playbackOptions(query=True, minTime=True))
+            end = int(cmds.playbackOptions(query=True, maxTime=True))
             self.n_keyframes_slider = UIBuilder.slider(hbox, 3, end - start + 1, 1, 3, self.set_n_keyframes_via_slider)
 
             # Error drawing
@@ -545,8 +534,8 @@ class SalientPosesDialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if fixed_keyframes_text != "":
             fixed_keyframes = [int(v) for v in self.fixed_keyframes_edit.text().split(",")]
 
-        start = int(self.start_edit.text())
-        end = int(self.end_edit.text())
+        start = int(cmds.playbackOptions(query=True, minTime=True))
+        end = int(cmds.playbackOptions(query=True, maxTime=True))
         self.selections = select_keyframes(cl_platform_ix, cl_device_ix, start, end, fixed_keyframes)
 
         # Update slider bounds
