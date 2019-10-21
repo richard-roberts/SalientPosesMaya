@@ -6,7 +6,6 @@ set(PROJECT_PATH ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT})
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cgcmake/modules)
 
 # Add the OpenCL and Maya libraries
-find_package(OpenCL REQUIRED)
 find_package(Maya REQUIRED)
 
 # Set the install prefix based on Maya
@@ -18,4 +17,3 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/module.txt" "${PROJECT_PATH}/${PROJE
 
 # Copy the scripts directory into the install directory
 install(FILES shelf_SalientPoses.mel DESTINATION ./SalientPoses)
-
