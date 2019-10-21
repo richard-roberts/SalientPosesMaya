@@ -1,12 +1,4 @@
-//
-//  ReduceCommand.hpp
-//  SalientPosesMaya
-//
-//  Created by Richard Roberts on 3/04/18.
-//
-
-#ifndef ReduceCommand_hpp
-#define ReduceCommand_hpp
+#pragma once
 
 #include <vector>
 
@@ -27,22 +19,12 @@ public:
     static MSyntax newSyntax();
     
     const static char* kName;
-    const static char* kHelpFlagShort;
-    const static char* kHelpFlagLong;
-    const static char* kStartFlagShort;
-    const static char* kStartFlagLong;
-    const static char* kFinishFlagShort;
-    const static char* kFinishFlagLong;
     const static char* kSelectionFlagShort;
     const static char* kSelectionFlagLong;
     
 private:
-    
-    int _start = -1;
-    int _finish = -1;
-    std::vector<int> _selection;
     MStatus GatherCommandArguments(const MArgList& args);
+    
+    std::vector<int> selection;
+    
 };
-
-
-#endif /* ReduceCommand_hpp */

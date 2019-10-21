@@ -1,10 +1,3 @@
-//
-//  ReduceCommand.cpp
-//  SalientPosesMaya
-//
-//  Created by Richard Roberts on 3/04/18.
-//
-
 #include <sstream>
 #include <vector>
 
@@ -29,27 +22,11 @@
 #include "MayaUtils.hpp"
 #include "ReduceCommand.hpp"
 
-#define RAD_TO_DEG 57.2958279088
-
 
 // Set name and flags
 const char* ReduceCommand::kName = "salientReduce";
-const char* ReduceCommand::kStartFlagShort = "-s";
-const char* ReduceCommand::kStartFlagLong = "-start";
-const char* ReduceCommand::kFinishFlagShort = "-f";
-const char* ReduceCommand::kFinishFlagLong = "-finish";
 const char* ReduceCommand::kSelectionFlagShort = "-sel";
 const char* ReduceCommand::kSelectionFlagLong = "-selection";
-const char* ReduceCommand::kHelpFlagShort = "-h";
-const char* ReduceCommand::kHelpFlagLong = "-help";
-
-void DisplayHelp() {
-    MString help;
-    help += "Flags:\n";
-    help += "-inputs (-i)         N/A        Inputs to the command.\n";
-    help += "-help   (-h)         N/A        Display this text.\n";
-    MGlobal::displayInfo(help);
-}
 
 MStatus ReduceCommand::doIt(const MArgList& args) {
     MStatus status;
@@ -71,20 +48,15 @@ MStatus ReduceCommand::doIt(const MArgList& args) {
         return MS::kFailure;
     }
     
-    // Ensure the start and end frames are given as argumetns
-    if (_start == -1 || _finish == -1) {
-        Log::error("The start and end flags have not been set (they cannot be set to -1).");
-        return MS::kFailure;
-    }
-    
     // Ensure the selection contains at least two keyframes
-    if (_selection.size() < 2) {
+    if (selection.size() < 2) {
         Log::error("At least two keyframes must be selected.");
         return MS::kFailure;
     }
     
-    int nFrames = _finish - _start + 1;
-    
+    int start = selection[0];
+    int finish = selection[selection.size() - 1];
+    int nFrames = finish - start + 1;
     MTime::Unit timeUnit = MayaConfig::getCurrentFPS();
     MAngle::Unit angleUnit = MayaConfig::getCurrentAngleUnit();
     bool usingDegrees = angleUnit == MAngle::kDegrees;
@@ -106,26 +78,25 @@ MStatus ReduceCommand::doIt(const MArgList& args) {
             bool isAngluar = curve.animCurveType() == MFnAnimCurve::kAnimCurveTA;
             
             // Cache the curve data
-            std::vector<float> data;
-            for (int i = _start; i < _finish + 1; i++) {
-                MTime time((double) (i), timeUnit);
+            Eigen::VectorXf data(nFrames);
+            for (int i = 0; i < nFrames; i++) {
+                MTime time((double) (start + i), timeUnit);
                 float v = curve.evaluate(time);
                 
                 if (isAngluar && usingDegrees) {
-                    data.push_back(v * RAD_TO_DEG);
+                    data[i] = v * 57.2958279088;
                 } else {
-                    data.push_back(v);
+                    data[i] = v;
                 }
                 
             }
             
             std::string name = curve.name().asChar();
-            Interpolator interpolator = Interpolator::fromData(name, data, _selection, nFrames, _start);
-            std::vector<Cubic> cubics = interpolator.getCubics();
+            std::vector<Cubic> cubics = Interpolate::optimal(data, selection);
             
             // Remove non-keyframes
-            for (int j = _start; j < _finish; j++) {
-                bool j_in_sel = std::find(_selection.begin(), _selection.end(), j) != _selection.end();
+            for (int j = start; j < finish; j++) {
+                bool j_in_sel = std::find(selection.begin(), selection.end(), j) != selection.end();
                 if (!j_in_sel) {
                     MTime t((double) j,timeUnit);
                     unsigned int ix = curve.findClosest(t);
@@ -134,10 +105,10 @@ MStatus ReduceCommand::doIt(const MArgList& args) {
             }
             
             // Update tangents based on fitting
-            for (int i = 0; i < _selection.size() - 1; i++) {
+            for (int i = 0; i < selection.size() - 1; i++) {
                 Cubic cubic = cubics.at(i);
-                int s = _selection[i];
-                int e = _selection[i + 1];
+                int s = selection[i];
+                int e = selection[i + 1];
                 
                 // Set outgoing for left keyframe
                 uint ixLeft;
@@ -166,9 +137,6 @@ MStatus ReduceCommand::doIt(const MArgList& args) {
 
 MSyntax ReduceCommand::newSyntax() {
     MSyntax syntax;
-    syntax.addFlag(kHelpFlagShort, kHelpFlagLong);
-    syntax.addFlag(kStartFlagShort, kStartFlagLong, MSyntax::kLong);
-    syntax.addFlag(kFinishFlagShort, kFinishFlagLong, MSyntax::kLong);
     syntax.addFlag(kSelectionFlagShort, kSelectionFlagLong, MSyntax::kLong);
     syntax.makeFlagMultiUse(kSelectionFlagShort);
     syntax.setObjectType(MSyntax::kSelectionList, 0, 255);
@@ -179,19 +147,6 @@ MSyntax ReduceCommand::newSyntax() {
 MStatus ReduceCommand::GatherCommandArguments(const MArgList& args) {
     MStatus status;
     MArgDatabase argData(syntax(), args);
-    
-    if (argData.isFlagSet(kHelpFlagShort)) {
-        DisplayHelp();
-        return MS::kSuccess;
-    }
-    
-    if (argData.isFlagSet(kStartFlagShort)) {
-        _start = argData.flagArgumentInt(kStartFlagShort, 0, &status);
-    }
-    
-    if (argData.isFlagSet(kFinishFlagShort)) {
-        _finish = argData.flagArgumentInt(kFinishFlagShort, 0, &status);
-    }
     
     if (argData.isFlagSet(kSelectionFlagShort)) {
         
@@ -205,7 +160,7 @@ MStatus ReduceCommand::GatherCommandArguments(const MArgList& args) {
                 return status;
             }
             int s = argList.asInt(0, &status);
-            _selection.push_back(s);
+            selection.push_back(s);
         }
     }
     
