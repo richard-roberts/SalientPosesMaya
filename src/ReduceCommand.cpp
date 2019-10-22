@@ -98,18 +98,18 @@ MStatus ReduceCommand::doIt(const MArgList& args) {
     }
 
     std::string name = mCurve.name().asChar();
-    std::vector<Cubic> cubics = Interpolate::optimal(data, fKeyframes);
+    std::vector<HighDimCubic> cubics = Interpolate::optimal(data, fKeyframes);
 
 	MDoubleArray values;
 	for (int i = 0; i < cubics.size(); i++) {
-		values.append(cubics[i].p1x());
-		values.append(cubics[i].p1y());
-		values.append(cubics[i].p2x());
-		values.append(cubics[i].p2y());
-		values.append(cubics[i].p3x());
-		values.append(cubics[i].p3y());
-		values.append(cubics[i].p4x());
-		values.append(cubics[i].p4y());
+		values.append(cubics[i].p1[0]);
+		values.append(cubics[i].p1[1]);
+		values.append(cubics[i].p2[0]);
+		values.append(cubics[i].p2[1]);
+		values.append(cubics[i].p3[0]);
+		values.append(cubics[i].p3[1]);
+		values.append(cubics[i].p4[0]);
+		values.append(cubics[i].p4[1]);
 	}
 	setResult(values);
     return MS::kSuccess;
