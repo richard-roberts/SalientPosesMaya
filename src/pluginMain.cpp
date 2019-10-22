@@ -17,7 +17,7 @@ MStatus initializePlugin(MObject obj) {
 	status = plugin.registerCommand(SelectCommand::kName, SelectCommand::creator);
     if (status != MS::kSuccess) { Log::error(std::string(SelectCommand::kName) + " failed to register"); }
 
-    status = plugin.registerCommand(ReduceCommand::kName, ReduceCommand::creator, ReduceCommand::newSyntax);
+    status = plugin.registerCommand(ReduceCommand::kName, ReduceCommand::creator);
     if (status != MS::kSuccess) { Log::error(std::string(ReduceCommand::kName) + " failed to register"); }
     
     return status;
