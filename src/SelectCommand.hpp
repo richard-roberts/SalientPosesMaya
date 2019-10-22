@@ -12,10 +12,7 @@
 
 class SelectCommand : public MPxCommand {
 public:
-    SelectCommand() {}
     virtual MStatus  doIt(const MArgList& args);
-    virtual MStatus  undoIt() { return MS::kSuccess; }
-    virtual MStatus  redoIt() { return MS::kSuccess; }
     virtual bool isUndoable() const { return false; }
     static void* creator() { return new SelectCommand; }
     const static char* kName;
@@ -23,8 +20,9 @@ public:
 private:
     MStatus GatherCommandArguments(const MArgList& args);
     
-    int start;
-    int end;
-    Eigen::MatrixXf animData;
+    int fStart;
+    int fEnd;
+	int fMaxKeyframes;
+    Eigen::MatrixXf fAnimData;
     
 };
