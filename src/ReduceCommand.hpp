@@ -18,8 +18,8 @@ public:
 private:
     MStatus GatherCommandArguments(const MArgList& args);
     
-    std::vector<int> fKeyframes;
 	MString fObjectName;
-	MString fAttrName;
-    
+	MString fAttrName; 
+	std::vector<int> fKeyframes;
+	Eigen::MatrixXf fAnimData; 
 };

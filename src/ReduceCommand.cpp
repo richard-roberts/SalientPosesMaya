@@ -51,54 +51,8 @@ MStatus ReduceCommand::doIt(const MArgList& args) {
 		os << std::endl;
 		MGlobal::displayInfo(os.str().c_str());
 	}
-    
-	// Get MPlug by searching through animated plugs connected to the object
-	// (specified by fObjectName) and find the one matching the attribute in
-	// question (specified by fAttributeName).
-	MObject mObject;
-	MSelectionList selList;
-	MPlugArray plugs;
-	int matchingPlugIndex = -1;
-	selList.add(fObjectName);
-	selList.getDependNode(0, mObject);
-	MAnimUtil::findAnimatedPlugs(mObject, plugs);
-	for (int i = 0; i < plugs.length(); i++) {
-		MPlug plug = plugs[i];
-		if (plug.partialName() == fAttrName) {
-			matchingPlugIndex = i;
-			break;
-		}
-	}
 
-	// Fail if not animate plug found
-	if (matchingPlugIndex == -1) {
-		std::ostringstream os; os << "did not find a plug matching " << fObjectName.asChar() << "." << fAttrName.asChar();
-		MGlobal::displayError(os.str().c_str());
-		return MS::kFailure;
-	}
-
-	// Get the curve and gather info
-	MFnAnimCurve mCurve(plugs[matchingPlugIndex]);    
-    int start = fKeyframes[0];
-    int finish = fKeyframes[fKeyframes.size() - 1];
-    int nFrames = finish - start + 1;
-    bool usingDegrees = angleUnit == MAngle::kDegrees;
-    bool isAngluar = mCurve.animCurveType() == MFnAnimCurve::kAnimCurveTA;
-            
-    // Cache the curve data
-    Eigen::VectorXf data(nFrames);
-    for (int i = 0; i < nFrames; i++) {
-        MTime time((double) (start + i), timeUnit);
-        float v = mCurve.evaluate(time); 
-        if (isAngluar && usingDegrees) {
-            data[i] = v * 57.2958279088;
-        } else {
-            data[i] = v;
-        }                
-    }
-
-    std::string name = mCurve.name().asChar();
-    std::vector<HighDimCubic> cubics = Interpolate::optimal(data, fKeyframes);
+    std::vector<HighDimCubic> cubics = Interpolate::optimal(fAnimData, fKeyframes);
 
 	MDoubleArray values;
 	for (int i = 0; i < cubics.size(); i++) {
@@ -117,8 +71,8 @@ MStatus ReduceCommand::doIt(const MArgList& args) {
 
 MStatus ReduceCommand::GatherCommandArguments(const MArgList& args) {
 
-	if (args.length() != 3) {
-		MGlobal::displayError("You must provide 3 arguments: start, end, keyframes (list).");
+	if (args.length() != 4) {
+		MGlobal::displayError("You must provide 4 arguments: object name, attribute name, keyframes (list, int), anim data (list, float).");
 		return MS::kFailure;
 	}
 
@@ -126,10 +80,22 @@ MStatus ReduceCommand::GatherCommandArguments(const MArgList& args) {
 	fObjectName = args.asString(ix++);
 	fAttrName = args.asString(ix++);
 
-	MIntArray mSelection = args.asIntArray(ix);
+	MIntArray mSelection = args.asIntArray(ix); ix += 1;
 	fKeyframes.clear();
 	for (uint i = 0; i < mSelection.length(); i++) {
 		fKeyframes.push_back(mSelection[i]);
+	}
+
+	MDoubleArray mAnimData = args.asDoubleArray(ix); ix += 1;
+	int nDims = 2;
+	int nFrames = mAnimData.length() / nDims;
+	fAnimData = Eigen::MatrixXf(nDims, nFrames);
+	int f = 0;
+	int d = 0;
+	for (uint i = 0; i < mAnimData.length(); i++) {
+		fAnimData(d, f) = mAnimData[i];
+		d += 1;
+		if (d == nDims) { d = 0; f += 1; }
 	}
 
     return MS::kSuccess;
