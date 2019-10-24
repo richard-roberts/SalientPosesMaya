@@ -21,6 +21,7 @@
 #include "MayaUtils.hpp"
 #include "../SalientPosesPerformance/src/ErrorTable.hpp"
 #include "../SalientPosesPerformance/src/Selector.hpp"
+#include "../SalientPosesPerformance/src/SelectionManager.hpp"
 
 
 #define VERBOSE 0
@@ -45,8 +46,11 @@ MStatus SelectCommand::doIt(const MArgList& args) {
     
     if (VERBOSE == 1) {
         std::ostringstream os;
+		os << "Error Type: " << fErrorType << std::endl;
         os << "Start: " << fStart << std::endl;
         os << "End: " << fEnd << std::endl;
+		os << "Fixed Keyframes: ";
+		for (int i = 0; i < fFixedKeyframes.size(); i++) { os << fFixedKeyframes[i] << ","; } os << std::endl;
         os << "Data: " << std::endl;
         os << fAnimData << std::endl;
         MGlobal::displayInfo(os.str().c_str());
@@ -54,8 +58,24 @@ MStatus SelectCommand::doIt(const MArgList& args) {
     
     // Perform the selection
     AnimationProxy anim = AnimationProxy(fAnimData);
-    ErrorTable table = ErrorTable(anim);
-    SelectionProxy selections = Select::upToN(fEnd - fStart + 1, fMaxKeyframes, anim, table);
+	anim = anim.subAnimation(fStart, fEnd);
+
+	/*ErrorTable table;
+	if (fErrorType == "line") {
+		table = ErrorTable::usingLineBasedError(anim);
+	} else if (fErrorType == "curve") {
+		table = ErrorTable::usingCurveBasedError(anim);
+	} else {
+		std::ostringstream os;
+		os << "The error type `" << fErrorType << "` is invalid? This shouldn't happen!" << std::endl;
+		MGlobal::displayError(os.str().c_str());
+	}
+
+    SelectionProxy selections = Select::upToN(anim, table, fMaxKeyframes);*/
+
+	SelectionManager manager(fErrorType.asChar(), anim, fFixedKeyframes);
+	manager.incrementUntilNKeyframes(fMaxKeyframes);
+	SelectionProxy selections = manager.getFinalSelectionProxy();
     
     if (VERBOSE == 2) {
         std::ostringstream os;
@@ -78,7 +98,7 @@ MStatus SelectCommand::doIt(const MArgList& args) {
     //   e|a,b,c
     //     where e is error, | is a delimiter, and a,b,c are the selection (wthout spaces).
     // Each error-selection pair is delimited by a new line.
-    for (int i = 3; i < fMaxKeyframes + 1; i++) {
+    for (int i = selections.getMinKeyframes(); i < selections.getMaxKeyframes() + 1; i++) {
         float error = selections.getErrorByNKeyframes(i);
         std::vector<int> selection = selections.getSelectionByNKeyframes(i);
         ret << error << "|";
@@ -93,18 +113,55 @@ MStatus SelectCommand::doIt(const MArgList& args) {
 
 MStatus SelectCommand::GatherCommandArguments(const MArgList& args) {
 
-	if (args.length() != 4) {
-		MGlobal::displayError("You must provide 4 arguments: start, end, maxKeyframes, animData (list).");
+	if (args.length() != 6) {
+		std::ostringstream os;
+		os << std::endl;
+		os << "----------------------------------------------" << std::endl; 
+		os << "Invalid args" << std::endl;
+		os << "-----------" << std::endl;
+		os << "You must provide 5 arguments:" << std::endl;
+		os << "    1. error type (`line` or `curve`)" << std::endl;
+		os << "    2. start (int, frame number)" << std::endl;
+		os << "    3. end (int, frame number)" << std::endl; 
+		os << "    4. max number of keyframes (int)" << std::endl;
+		os << "    5. fixed keyframes (list of ints)." << std::endl;
+		os << "    6. the animation data (list of floats, pose-by-pose)." << std::endl;
+		os << "----------------------------------------------" << std::endl;
+		MGlobal::displayError(os.str().c_str());
 		return MS::kFailure;
 	}
 
     unsigned int ix = 0;
+	fErrorType = args.asString(ix++);
+
+	if (fErrorType != "line" && fErrorType != "curve") {
+		std::ostringstream os;
+		os << "The error type `" << fErrorType << "` is not understand, must be either `line` or `curve`" << std::endl;
+		MGlobal::displayError(os.str().c_str());
+		return MS::kFailure;
+	}
+
 	fStart = args.asInt(ix++);
 	fEnd = args.asInt(ix++);
+	int nFrames = fEnd - fStart + 1;
 	fMaxKeyframes = args.asInt(ix++);
+
+	if (fMaxKeyframes > nFrames) {
+		std::ostringstream os;
+		os << "You cannot select more keyframes than there are frames" << std::endl;
+		MGlobal::displayError(os.str().c_str());
+		return MS::kFailure;
+	}
     
+	MIntArray mFixedKeyframes = args.asIntArray(ix);
+	fFixedKeyframes = std::vector<int>();
+	for (uint i = 0; i < mFixedKeyframes.length(); i++) {
+		fFixedKeyframes.push_back(mFixedKeyframes[i]);
+	}
+
+	ix += 1;
+
     MDoubleArray mAnimData = args.asDoubleArray(ix);
-    int nFrames = fEnd - fStart + 1;
     int nDims = mAnimData.length() / nFrames;
     fAnimData = Eigen::MatrixXf(nDims, nFrames);
     int f = 0;

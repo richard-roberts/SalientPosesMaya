@@ -21,6 +21,8 @@ set(SOURCE_FILES
     "../SalientPosesPerformance/src/SelectionProxy.hpp"
     "../SalientPosesPerformance/src/Selector.cpp"
     "../SalientPosesPerformance/src/Selector.hpp"
+	"../SalientPosesPerformance/src/SelectionManager.cpp"
+    "../SalientPosesPerformance/src/SelectionManager.hpp"
     "../SalientPosesPerformance/src/Interpolator.cpp"
     "../SalientPosesPerformance/src/Interpolator.hpp"
     "MayaUtils.cpp"

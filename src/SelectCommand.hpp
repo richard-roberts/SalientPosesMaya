@@ -20,9 +20,11 @@ public:
 private:
     MStatus GatherCommandArguments(const MArgList& args);
     
+	MString fErrorType;
     int fStart;
     int fEnd;
 	int fMaxKeyframes;
+	std::vector<int> fFixedKeyframes;
     Eigen::MatrixXf fAnimData;
     
 };
