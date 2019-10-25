@@ -1,10 +1,3 @@
-//
-//  SelectCommand.cpp
-//  SalientPosesMaya
-//
-//  Created by Richard Roberts on 12/09/18.
-//
-
 #include <iomanip>
 #include <sstream>
 #include <vector>
@@ -24,61 +17,78 @@
 #include <maya/MFnTypedAttribute.h>
 #include <maya/MAngle.h>
 
-#include "../SalientPosesPerformance/src/OpenCLProcess.hpp"
 #include "SelectCommand.hpp"
 #include "MayaUtils.hpp"
 #include "../SalientPosesPerformance/src/ErrorTable.hpp"
+#include "../SalientPosesPerformance/src/Selector.hpp"
 #include "../SalientPosesPerformance/src/SelectionManager.hpp"
 
-#define RAD_TO_DEG 57.2958279088
 
-MString SelectCommand::openCLDirectory;
+#define VERBOSE 0
 
-// Set name and flags
 const char* SelectCommand::kName = "salientSelect";
-const char* SelectCommand::kOpenCLPlatformFlagShort = "-clp";
-const char* SelectCommand::kOpenCLPlatformFlagLong = "-clplatform";
-const char* SelectCommand::kOpenCLDeviceFlagShort = "-cld";
-const char* SelectCommand::kOpenCLDeviceFlagLong = "-cldevice";
-const char* SelectCommand::kStartFlagShort = "-s";
-const char* SelectCommand::kStartFlagLong = "-start";
-const char* SelectCommand::kFinishFlagShort = "-f";
-const char* SelectCommand::kFinishFlagLong = "-finish";
-const char* SelectCommand::kAnimFlagShort = "-a";
-const char* SelectCommand::kAnimFlagLong = "-anim";
-const char* SelectCommand::kDimensionsFlagShort = "-d";
-const char* SelectCommand::kDimensionsFlagLong = "-dimensions";
-const char* SelectCommand::kHelpFlagShort = "-h";
-const char* SelectCommand::kHelpFlagLong = "-help";
-
 
 MStatus SelectCommand::doIt(const MArgList& args) {
     MStatus status;
     
-    // Process arguments
     status = GatherCommandArguments(args);
-    CHECK_MSTATUS_AND_RETURN_IT(status);
-    
-    // Set OpenCL platform and device
-    OpenCLProcessManager::setPlatformIdToPlatformAtIndex(openCLPlatformIndex - 1);
-    OpenCLProcessManager::setDeviceIdToDeviceAtIndex(openCLDeviceIndex - 1);
+	if (status != MS::kSuccess) {
+		return MS::kFailure;
+	}
     
     // Ensure the start and end frames are given as argumetns
-    if (_start == -1 || _finish == -1) {
-		std::ostringstream os;
-		os << "The start and end flags have not been set (start=" << _start << " end=" << _finish << ")";
+    if (fStart == -1 || fEnd == -1) {
+        std::ostringstream os;
+        os << "The start and end flags have not been set (start=" << fStart << " end=" << fEnd << ")";
         Log::error(os.str());
         return MS::kFailure;
     }
     
+    if (VERBOSE == 1) {
+        std::ostringstream os;
+		os << "Error Type: " << fErrorType << std::endl;
+        os << "Start: " << fStart << std::endl;
+        os << "End: " << fEnd << std::endl;
+		os << "Fixed Keyframes: ";
+		for (int i = 0; i < fFixedKeyframes.size(); i++) { os << fFixedKeyframes[i] << ","; } os << std::endl;
+        os << "Data: " << std::endl;
+        os << fAnimData << std::endl;
+        MGlobal::displayInfo(os.str().c_str());
+    }
+    
     // Perform the selection
-    std::string openclProgramPath = openCLDirectory.asChar() + std::string("/kernel.cl");
-    std::string openclProgramName = "max_distance_to_polyline";
-	AnimationProxy anim = AnimationProxy::fromData(_animData, _dimensions, _start, _finish);
-    SelectionManager manager = SelectionManager(anim, _fixedKeyframes.data(), _fixedKeyframes.size(),
-                                                openclProgramPath, openclProgramName);
-    manager.incrementUntilNKeyframes(anim.nFrames);
-    SelectionProxy * selectionProxy = manager.asProxy();
+    AnimationProxy anim = AnimationProxy(fAnimData);
+	anim = anim.subAnimation(fStart, fEnd);
+
+	/*ErrorTable table;
+	if (fErrorType == "line") {
+		table = ErrorTable::usingLineBasedError(anim);
+	} else if (fErrorType == "curve") {
+		table = ErrorTable::usingCurveBasedError(anim);
+	} else {
+		std::ostringstream os;
+		os << "The error type `" << fErrorType << "` is invalid? This shouldn't happen!" << std::endl;
+		MGlobal::displayError(os.str().c_str());
+	}
+
+    SelectionProxy selections = Select::upToN(anim, table, fMaxKeyframes);*/
+
+	SelectionManager manager(fErrorType.asChar(), anim, fFixedKeyframes);
+	manager.incrementUntilNKeyframes(fMaxKeyframes);
+	SelectionProxy selections = manager.getFinalSelectionProxy();
+    
+    if (VERBOSE == 2) {
+        std::ostringstream os;
+        for (int i = 3; i < fMaxKeyframes + 1; i++) {
+            std::vector<int> sel = selections.getSelectionByNKeyframes(i);
+            os << i << ": ";
+            for (int j = 0; j < sel.size(); j++) {
+                os << sel[j] << ",";
+            }
+            os << std::endl;
+        }
+        MGlobal::displayInfo(os.str().c_str());
+    }
 
     // Build string containing result (precise to four decimal places)
     std::ostringstream ret;
@@ -88,71 +98,79 @@ MStatus SelectCommand::doIt(const MArgList& args) {
     //   e|a,b,c
     //     where e is error, | is a delimiter, and a,b,c are the selection (wthout spaces).
     // Each error-selection pair is delimited by a new line.
-    for (int i = 0; i < selectionProxy->numberOfSelections(); i++) {
-        std::vector<int> selection = selectionProxy->getSelectionByIndex(i);
-        ret << selectionProxy->getErrorByIndex(i) << "|";
+    for (int i = selections.getMinKeyframes(); i < selections.getMaxKeyframes() + 1; i++) {
+        float error = selections.getErrorByNKeyframes(i);
+        std::vector<int> selection = selections.getSelectionByNKeyframes(i);
+        ret << error << "|";
         ret << selection[0];
-        for (int j = 1; j < selection.size(); j++) {
-            ret << "," << selection[j];
-        }
+        for (int j = 1; j < selection.size(); j++) ret << "," << selection[j];
         ret << "\n";
     }
 
 	setResult(MString(ret.str().c_str()));
-
-	delete selectionProxy;
     return MS::kSuccess;
 }
 
-MSyntax SelectCommand::newSyntax() {
-    MSyntax syntax;
-    syntax.addFlag(kHelpFlagShort, kHelpFlagLong);
-    syntax.addFlag(kOpenCLPlatformFlagShort, kOpenCLPlatformFlagLong, MSyntax::kLong);
-    syntax.addFlag(kOpenCLDeviceFlagShort, kOpenCLDeviceFlagLong, MSyntax::kLong);
-    syntax.addFlag(kStartFlagShort, kStartFlagLong, MSyntax::kLong);
-    syntax.addFlag(kFinishFlagShort, kFinishFlagLong, MSyntax::kLong);
-	syntax.addFlag(kAnimFlagShort, kAnimFlagLong, MSyntax::kDouble);
-	syntax.makeFlagMultiUse(kAnimFlagShort);
-	syntax.addFlag(kDimensionsFlagShort, kDimensionsFlagLong, MSyntax::kLong);
-	syntax.makeFlagMultiUse(kDimensionsFlagShort);
-    syntax.addFlag(kDimensionsFlagShort, kDimensionsFlagLong, MSyntax::kLong);
-    syntax.setObjectType(MSyntax::kSelectionList, 0, 255);
-    syntax.useSelectionAsDefault(false);
-    return syntax;
-}
-
 MStatus SelectCommand::GatherCommandArguments(const MArgList& args) {
-	MStatus status;
 
-	unsigned int ix = 0;
-    
-    openCLPlatformIndex = args.asInt(ix, &status);
-    ix += 1;
-    openCLDeviceIndex = args.asInt(ix, &status);
-    ix += 1;
+	if (args.length() != 6) {
+		std::ostringstream os;
+		os << std::endl;
+		os << "----------------------------------------------" << std::endl; 
+		os << "Invalid args" << std::endl;
+		os << "-----------" << std::endl;
+		os << "You must provide 5 arguments:" << std::endl;
+		os << "    1. error type (`line` or `curve`)" << std::endl;
+		os << "    2. start (int, frame number)" << std::endl;
+		os << "    3. end (int, frame number)" << std::endl; 
+		os << "    4. max number of keyframes (int)" << std::endl;
+		os << "    5. fixed keyframes (list of ints)." << std::endl;
+		os << "    6. the animation data (list of floats, pose-by-pose)." << std::endl;
+		os << "----------------------------------------------" << std::endl;
+		MGlobal::displayError(os.str().c_str());
+		return MS::kFailure;
+	}
 
-	_start = args.asInt(ix,&status);
-	ix += 1;
-	_finish = args.asInt(ix, &status);
-	ix += 1;
-	MDoubleArray mAnimData = args.asDoubleArray(ix, &status);
-	ix += 1;
-	MStringArray mDimensions = args.asStringArray(ix, &status);
-    ix += 1;
-    MIntArray mFixedKeyframes = args.asIntArray(ix, &status);
-    ix += 1;
+    unsigned int ix = 0;
+	fErrorType = args.asString(ix++);
+
+	if (fErrorType != "line" && fErrorType != "curve") {
+		std::ostringstream os;
+		os << "The error type `" << fErrorType << "` is not understand, must be either `line` or `curve`" << std::endl;
+		MGlobal::displayError(os.str().c_str());
+		return MS::kFailure;
+	}
+
+	fStart = args.asInt(ix++);
+	fEnd = args.asInt(ix++);
+	int nFrames = fEnd - fStart + 1;
+	fMaxKeyframes = args.asInt(ix++);
+
+	if (fMaxKeyframes > nFrames) {
+		std::ostringstream os;
+		os << "You cannot select more keyframes than there are frames" << std::endl;
+		MGlobal::displayError(os.str().c_str());
+		return MS::kFailure;
+	}
     
+	MIntArray mFixedKeyframes = args.asIntArray(ix);
+	fFixedKeyframes = std::vector<int>();
+	for (uint i = 0; i < mFixedKeyframes.length(); i++) {
+		fFixedKeyframes.push_back(mFixedKeyframes[i]);
+	}
+
+	ix += 1;
+
+    MDoubleArray mAnimData = args.asDoubleArray(ix);
+    int nDims = mAnimData.length() / nFrames;
+    fAnimData = Eigen::MatrixXf(nDims, nFrames);
+    int f = 0;
+    int d = 0;
 	for (uint i = 0; i < mAnimData.length(); i++) {
-		_animData.push_back(mAnimData[i]);
+		fAnimData(d, f) = mAnimData[i];
+        d += 1;
+        if (d == nDims) { d = 0; f += 1; }
 	}
-
-	for (uint i = 0; i < mDimensions.length(); i++) {
-		_dimensions.push_back(mDimensions[i].asChar());
-	}
-    
-    for (uint i = 0; i < mFixedKeyframes.length(); i++) {
-        _fixedKeyframes.push_back(mFixedKeyframes[i]);
-    }
     
     return MS::kSuccess;
 }
