@@ -15,8 +15,6 @@ set(SOURCE_FILES
     "../SalientPosesPerformance/src/common.hpp"
     "../SalientPosesPerformance/src/AnimationProxy.cpp"
     "../SalientPosesPerformance/src/AnimationProxy.hpp"
-    "../SalientPosesPerformance/src/OpenCLProcess.cpp"
-    "../SalientPosesPerformance/src/OpenCLProcess.hpp"
     "../SalientPosesPerformance/src/ErrorTable.cpp"
     "../SalientPosesPerformance/src/ErrorTable.hpp"
     "../SalientPosesPerformance/src/SelectionProxy.cpp"
@@ -29,8 +27,6 @@ set(SOURCE_FILES
     "../SalientPosesPerformance/src/Interpolator.hpp"
     "MayaUtils.cpp"
     "MayaUtils.hpp"
-    "OpenCLInfoCommand.cpp"
-    "OpenCLInfoCommand.hpp"
     "ReduceCommand.cpp"
     "ReduceCommand.hpp"
 	"SelectCommand.cpp"
@@ -54,8 +50,6 @@ target_compile_options(${PROJECT_NAME} PRIVATE ${COMPILE_FLAGS})
 # Format as a Maya plugin.
 MAYA_PLUGIN(${PROJECT_NAME})
 
-# Include name and version meta-data
-install(TARGETS ${PROJECT_NAME} ${MAYA_TARGET_TYPE} DESTINATION ./plug-ins/SalientPoses)
-
-# Finally, copy OpenCL programs into the build's directory.
-install(FILES "../SalientPosesPerformance/src/kernel.cl" DESTINATION ./plug-ins/SalientPoses)
+# Setup the maya module
+install(DIRECTORY "../maya/" DESTINATION ./SalientPoses)
+install(TARGETS ${PROJECT_NAME} ${MAYA_TARGET_TYPE} DESTINATION ./SalientPoses/plug-ins)

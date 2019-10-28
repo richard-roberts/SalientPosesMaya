@@ -1,0 +1,78 @@
+global proc shelf_SalientPoses () {
+    global string $gBuffStr;
+    global string $gBuffStr0;
+    global string $gBuffStr1;
+
+
+    shelfButton
+        -enableCommandRepeat 1
+        -flexibleWidthType 3
+        -flexibleWidthValue 32
+        -enable 1
+        -width 35
+        -height 34
+        -manage 1
+        -visible 1
+        -preventOverride 0
+        -annotation "Open's the Salient Poses Menu" 
+        -enableBackground 0
+        -backgroundColor 0 0 0 
+        -highlightColor 0.321569 0.521569 0.65098 
+        -align "center" 
+        -label "Open Salient Poses" 
+        -labelOffset 0
+        -rotation 0
+        -flipX 0
+        -flipY 0
+        -useAlpha 1
+        -font "plainLabelFont" 
+        -imageOverlayLabel "OPEN" 
+        -overlayLabelColor 0.8 0.8 0.8 
+        -overlayLabelBackColor 0 0 0 0.5 
+        -image "commandButton.png" 
+        -image1 "commandButton.png" 
+        -style "iconOnly" 
+        -marginWidth 1
+        -marginHeight 1
+        -command "try:\n    salient_poses_gui.show()\nexcept:\n    from salient_poses_interface import SalientPosesGUI\n    salient_poses_gui = SalientPosesGUI()\n    salient_poses_gui.show()" 
+        -sourceType "python" 
+        -commandRepeatable 1
+        -flat 1
+    ;
+    shelfButton
+        -enableCommandRepeat 1
+        -flexibleWidthType 3
+        -flexibleWidthValue 32
+        -enable 1
+        -width 35
+        -height 34
+        -manage 1
+        -visible 1
+        -preventOverride 0
+        -annotation "Animate spheres to follow the selected transformation objects" 
+        -enableBackground 0
+        -backgroundColor 0 0 0 
+        -highlightColor 0.321569 0.521569 0.65098 
+        -align "center" 
+        -label "Track Selected" 
+        -labelOffset 0
+        -rotation 0
+        -flipX 0
+        -flipY 0
+        -useAlpha 1
+        -font "plainLabelFont" 
+        -imageOverlayLabel "TRACK" 
+        -overlayLabelColor 0.8 0.8 0.8 
+        -overlayLabelBackColor 0 0 0 0.5 
+        -image "commandButton.png" 
+        -image1 "commandButton.png" 
+        -style "iconOnly" 
+        -marginWidth 1
+        -marginHeight 1
+        -command "import maya\n\ndef exe_attach_locators():\n    sel = maya.cmds.ls(selection=True)\n    if sel is None or len(sel) == 0:\n        maya.OpenMaya.MGlobal.displayError(\"You must select at least one object with this command\")\n        return\n        \n    locs = []\n    constraints = []\n    for o in sel:\n        name = \"Locator_%s\" % o\n        loc = maya.cmds.polySphere(sx=6,sy=6,r=6,name=name)[0]\n        constraint = maya.cmds.parentConstraint(o, loc)[0]\n        locs.append(loc)\n        constraints.append(constraint)\n\n    start = maya.cmds.playbackOptions(query=True, minTime=True)\n    end = maya.cmds.playbackOptions(query=True, maxTime=True)    \n    maya.cmds.bakeResults(locs, time=(start, end), simulation=True)\n    cmds.delete(constraints)\n    cmds.select(locs, replace=True)\n    \nexe_attach_locators()" 
+        -sourceType "python" 
+        -commandRepeatable 1
+        -flat 1
+    ;
+
+} 

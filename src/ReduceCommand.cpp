@@ -1,10 +1,3 @@
-//
-//  ReduceCommand.cpp
-//  SalientPosesMaya
-//
-//  Created by Richard Roberts on 3/04/18.
-//
-
 #include <sstream>
 #include <vector>
 
@@ -29,186 +22,82 @@
 #include "MayaUtils.hpp"
 #include "ReduceCommand.hpp"
 
-#define RAD_TO_DEG 57.2958279088
 
+#define VERBOSE 0
 
-// Set name and flags
 const char* ReduceCommand::kName = "salientReduce";
-const char* ReduceCommand::kStartFlagShort = "-s";
-const char* ReduceCommand::kStartFlagLong = "-start";
-const char* ReduceCommand::kFinishFlagShort = "-f";
-const char* ReduceCommand::kFinishFlagLong = "-finish";
-const char* ReduceCommand::kSelectionFlagShort = "-sel";
-const char* ReduceCommand::kSelectionFlagLong = "-selection";
-const char* ReduceCommand::kHelpFlagShort = "-h";
-const char* ReduceCommand::kHelpFlagLong = "-help";
-
-void DisplayHelp() {
-    MString help;
-    help += "Flags:\n";
-    help += "-inputs (-i)         N/A        Inputs to the command.\n";
-    help += "-help   (-h)         N/A        Display this text.\n";
-    MGlobal::displayInfo(help);
-}
 
 MStatus ReduceCommand::doIt(const MArgList& args) {
     MStatus status;
+	
+	// Get basic stuff
+	MTime::Unit timeUnit = MayaConfig::getCurrentFPS();
+	MAngle::Unit angleUnit = MayaConfig::getCurrentAngleUnit();
     
     // Process arguments
     status = GatherCommandArguments(args);
-    CHECK_MSTATUS_AND_RETURN_IT(status);
-    
-    // Get current selection
-    MSelectionList slist;
-    MGlobal::getActiveSelectionList(slist);
-    MItSelectionList iter(slist, MFn::kInvalid, &status);
-    CHECK_MSTATUS_AND_RETURN_IT(status);
-    
-    // Ensure at least 1 thing is selected
-    int n = slist.length();
-    if (n == 0) {
-        Log::error("Please select objects for reduction");
-        return MS::kFailure;
-    }
-    
-    // Ensure the start and end frames are given as argumetns
-    if (_start == -1 || _finish == -1) {
-        Log::error("The start and end flags have not been set (they cannot be set to -1).");
-        return MS::kFailure;
-    }
-    
-    // Ensure the selection contains at least two keyframes
-    if (_selection.size() < 2) {
-        Log::error("At least two keyframes must be selected.");
-        return MS::kFailure;
-    }
-    
-    int nFrames = _finish - _start + 1;
-    
-    MTime::Unit timeUnit = MayaConfig::getCurrentFPS();
-    MAngle::Unit angleUnit = MayaConfig::getCurrentAngleUnit();
-    bool usingDegrees = angleUnit == MAngle::kDegrees;
-    
-    while (!iter.isDone()) {
-        MObject mobj;
-        iter.getDependNode(mobj);
-        iter.next();
-        
-        // Find animated plugs connected to this node
-        MFnDependencyNode dependNode(mobj);
-        MPlugArray plugs;
-        MAnimUtil::findAnimatedPlugs(mobj, plugs);
-        
-        // Iterate through each curve
-        for (int k = 0; k < plugs.length(); k++) {
-            MFnAnimCurve curve(plugs[k]);
-            
-            bool isAngluar = curve.animCurveType() == MFnAnimCurve::kAnimCurveTA;
-            
-            // Cache the curve data
-            std::vector<float> data;
-            for (int i = _start; i < _finish + 1; i++) {
-                MTime time((double) (i), timeUnit);
-                float v = curve.evaluate(time);
-                
-                if (isAngluar && usingDegrees) {
-                    data.push_back(v * RAD_TO_DEG);
-                } else {
-                    data.push_back(v);
-                }
-                
-            }
-            
-            std::string name = curve.name().asChar();
-            Interpolator interpolator = Interpolator::fromData(name, data, _selection, nFrames, _start);
-            std::vector<Cubic> cubics = interpolator.getCubics();
-            
-            // Remove non-keyframes
-            for (int j = _start; j < _finish; j++) {
-                bool j_in_sel = std::find(_selection.begin(), _selection.end(), j) != _selection.end();
-                if (!j_in_sel) {
-                    MTime t((double) j,timeUnit);
-                    unsigned int ix = curve.findClosest(t);
-                    curve.remove(ix);
-                }
-            }
-            
-            // Update tangents based on fitting
-            for (int i = 0; i < _selection.size() - 1; i++) {
-                Cubic cubic = cubics.at(i);
-                int s = _selection[i];
-                int e = _selection[i + 1];
-                
-                // Set outgoing for left keyframe
-                uint ixLeft;
-                MTime timeLeft((double) s, timeUnit);
-                curve.find(timeLeft, ixLeft);
-                curve.setWeightsLocked(ixLeft, false);
-                curve.setTangentsLocked(ixLeft, false);
-                curve.setAngle(ixLeft, MAngle(cubic.angleLeft(), MAngle::kRadians), false);
-                curve.setWeight(ixLeft, cubic.weightLeft(), false);
-                
-                // Set incoming for right keyframe
-                uint ixRight;
-                MTime timeRight((double) e, timeUnit);
-                curve.find(timeRight, ixRight);
-                curve.setWeightsLocked(ixRight, false);
-                curve.setTangentsLocked(ixRight, false);
-                
-                curve.setAngle(ixRight, MAngle(cubic.angleRight(), MAngle::kRadians), true);
-                curve.setWeight(ixRight, cubic.weightRight(), true);
-            }
-        }
-    }
-    
+	if (status != MS::kSuccess) {
+		return MS::kFailure;
+	}
+
+	if (VERBOSE == 1) {
+		std::ostringstream os;
+		os << "Object: " << fObjectName << std::endl;
+		os << "Attribute: " << fAttrName << std::endl;
+		os << "Keyframes: ";
+		for (int i = 0; i < fKeyframes.size(); i++) {
+			os << fKeyframes[i] << ",";
+		}
+		os << std::endl;
+		MGlobal::displayInfo(os.str().c_str());
+	}
+
+    std::vector<HighDimCubic> cubics = Interpolate::optimal(fAnimData, fKeyframes);
+
+	MDoubleArray values;
+	for (int i = 0; i < cubics.size(); i++) {
+		values.append(cubics[i].p1[0]);
+		values.append(cubics[i].p1[1]);
+		values.append(cubics[i].p2[0]);
+		values.append(cubics[i].p2[1]);
+		values.append(cubics[i].p3[0]);
+		values.append(cubics[i].p3[1]);
+		values.append(cubics[i].p4[0]);
+		values.append(cubics[i].p4[1]);
+	}
+	setResult(values);
     return MS::kSuccess;
 }
 
-MSyntax ReduceCommand::newSyntax() {
-    MSyntax syntax;
-    syntax.addFlag(kHelpFlagShort, kHelpFlagLong);
-    syntax.addFlag(kStartFlagShort, kStartFlagLong, MSyntax::kLong);
-    syntax.addFlag(kFinishFlagShort, kFinishFlagLong, MSyntax::kLong);
-    syntax.addFlag(kSelectionFlagShort, kSelectionFlagLong, MSyntax::kLong);
-    syntax.makeFlagMultiUse(kSelectionFlagShort);
-    syntax.setObjectType(MSyntax::kSelectionList, 0, 255);
-    syntax.useSelectionAsDefault(false);
-    return syntax;
-}
-
 MStatus ReduceCommand::GatherCommandArguments(const MArgList& args) {
-    MStatus status;
-    MArgDatabase argData(syntax(), args);
-    
-    if (argData.isFlagSet(kHelpFlagShort)) {
-        DisplayHelp();
-        return MS::kSuccess;
-    }
-    
-    if (argData.isFlagSet(kStartFlagShort)) {
-        _start = argData.flagArgumentInt(kStartFlagShort, 0, &status);
-    }
-    
-    if (argData.isFlagSet(kFinishFlagShort)) {
-        _finish = argData.flagArgumentInt(kFinishFlagShort, 0, &status);
-    }
-    
-    if (argData.isFlagSet(kSelectionFlagShort)) {
-        
-        uint numUses = argData.numberOfFlagUses(kSelectionFlagShort);
-        for (uint i = 0; i < numUses; i++) {
-            MArgList argList;
-            status = argData.getFlagArgumentList(kSelectionFlagShort, i, argList);
-            if (!status) {
-                std::ostringstream os; os << "Failed to read " << kSelectionFlagLong << " at index=" << i;
-                Log::print(os.str());
-                return status;
-            }
-            int s = argList.asInt(0, &status);
-            _selection.push_back(s);
-        }
-    }
-    
+
+	if (args.length() != 4) {
+		MGlobal::displayError("You must provide 4 arguments: object name, attribute name, keyframes (list, int), anim data (list, float).");
+		return MS::kFailure;
+	}
+
+	unsigned int ix = 0;
+	fObjectName = args.asString(ix++);
+	fAttrName = args.asString(ix++);
+
+	MIntArray mSelection = args.asIntArray(ix); ix += 1;
+	fKeyframes.clear();
+	for (uint i = 0; i < mSelection.length(); i++) {
+		fKeyframes.push_back(mSelection[i]);
+	}
+
+	MDoubleArray mAnimData = args.asDoubleArray(ix); ix += 1;
+	int nDims = 2;
+	int nFrames = mAnimData.length() / nDims;
+	fAnimData = Eigen::MatrixXf(nDims, nFrames);
+	int f = 0;
+	int d = 0;
+	for (uint i = 0; i < mAnimData.length(); i++) {
+		fAnimData(d, f) = mAnimData[i];
+		d += 1;
+		if (d == nDims) { d = 0; f += 1; }
+	}
+
     return MS::kSuccess;
 }
 
