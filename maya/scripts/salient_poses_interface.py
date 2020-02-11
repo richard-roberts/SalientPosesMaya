@@ -164,7 +164,12 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         self.extreme_selections = self.select("line", fixed_keyframes)
         self.n_extreme_keyframes_slider.setMinimum(min(self.extreme_selections.keys()))
         self.n_extreme_keyframes_slider.setMaximum(max(self.extreme_selections.keys()))
-        self.n_extreme_keyframes_edit.setText(str(int(self.n_extreme_keyframes_slider.value())))
+        n = min(self.extreme_selections.keys())
+        self.n_extreme_keyframes_slider.setValue(n)
+        self.n_extreme_keyframes_edit.setText(str(n))
+        selection = self.extreme_selections[n]["selection"]
+        altmaya.Animation.ghost_keyframes(selection)
+        
         
     def select_breakdowns(self):
         n = int(self.n_extreme_keyframes_slider.value())
@@ -172,8 +177,12 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         self.breakdown_selections = self.select("curve", fixed_keyframes)
         self.n_breakdown_keyframes_slider.setMinimum(min(self.breakdown_selections.keys()))
         self.n_breakdown_keyframes_slider.setMaximum(max(self.breakdown_selections.keys()))
-        self.n_breakdown_keyframes_edit.setText(str(int(self.n_breakdown_keyframes_slider.value())))
-
+        n = min(self.breakdown_selections.keys())
+        self.n_breakdown_keyframes_slider.setValue(n)
+        self.n_breakdown_keyframes_edit.setText(str(n))
+        selection = self.breakdown_selections[n]["selection"]
+        altmaya.Animation.ghost_keyframes(selection)
+        
     def handle_extreme_slider_moved(self):
         if len(self.extreme_selections.keys()) == 0:
             altmaya.Report.error("Please run the selection before using this slider")
