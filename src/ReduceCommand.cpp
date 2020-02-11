@@ -18,7 +18,7 @@
 
 #include "../eigen-git-mirror/Eigen/Eigen"
 
-#include "../SalientPosesPerformance/src/Interpolator.hpp"
+#include "Interpolator.hpp"
 #include "MayaUtils.hpp"
 #include "ReduceCommand.hpp"
 

@@ -19,9 +19,9 @@
 
 #include "SelectCommand.hpp"
 #include "MayaUtils.hpp"
-#include "../SalientPosesPerformance/src/ErrorTable.hpp"
-#include "../SalientPosesPerformance/src/Selector.hpp"
-#include "../SalientPosesPerformance/src/SelectionManager.hpp"
+#include "ErrorTable.hpp"
+#include "Selector.hpp"
+#include "SelectionManager.hpp"
 
 
 #define VERBOSE 0
