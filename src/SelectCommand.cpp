@@ -58,7 +58,6 @@ MStatus SelectCommand::doIt(const MArgList& args) {
     
     // Perform the selection
     AnimationProxy anim = AnimationProxy(fAnimData);
-	anim = anim.subAnimation(fStart, fEnd);
 
 	/*ErrorTable table;
 	if (fErrorType == "line") {
