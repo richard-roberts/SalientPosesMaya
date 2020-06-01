@@ -142,6 +142,17 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
 
         n_frames = end - start + 1
         max_keyframes = int(n_frames * 0.2) #int(self.max_keyframes_edit.text())
+
+        if len(fixed_keyframes) > 0:
+            max_k = max(fixed_keyframes)
+            min_k = min(fixed_keyframes)
+            if max_k > end:
+                altmaya.Report.error("a fixed keyframe greater than the last frame (fixed=%2.2f, last=%2.2f)" % (max_k, end))
+                return
+            elif min_k < start:
+                altmaya.Report.error("there is a fixed keyframe smaller than the first keyframe (fixed=%2.2f, first=%2.2f)" % (min_k, start))
+                return
+
         fixed_keyframes = [v - start for v in fixed_keyframes]
         result = maya.cmds.salientSelect(error_type, start, end, max_keyframes, fixed_keyframes, data)
         
