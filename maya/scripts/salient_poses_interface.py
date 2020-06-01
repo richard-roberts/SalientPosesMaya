@@ -37,13 +37,21 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         self.create_layouts()
         self.create_connections()
         
+
+        self.report_todo("Ready and Waiting")
+        
     def create_widgets(self):
+        
+        # Status bar
+        self.status_bar = QtWidgets.QLabel("")
+
+        # Setup section
         self.choose_select_attr_button = QtWidgets.QPushButton("Attrs (S)")
         self.choose_reduce_attr_button = QtWidgets.QPushButton("Attrs (R)")
-        
+
+        # Extremes section
         self.fixed_keyframes_label = QtWidgets.QLabel("Fixed Keyframes")
         self.fixed_keyframes_edit = QtWidgets.QLineEdit()
-        
         self.select_extremes_button = QtWidgets.QPushButton("Extremes")
         self.n_extreme_keyframes_label = QtWidgets.QLabel("N")
         self.n_extreme_keyframes_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
@@ -51,6 +59,7 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         self.n_extreme_keyframes_edit.setEnabled(False)
         self.extreme_reduce_button = QtWidgets.QPushButton("Reduce by Extremes Only")
         
+        # Breakdowns section
         self.select_breakdowns_button = QtWidgets.QPushButton("Breakdowns")
         self.n_breakdown_keyframes_label = QtWidgets.QLabel("N")
         self.n_breakdown_keyframes_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
@@ -58,6 +67,7 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         self.n_breakdown_keyframes_edit.setEnabled(False)
         self.breakdown_reduce_button = QtWidgets.QPushButton("Reduce by Breakdowns Too")
         
+        # Other
         self.close_button = QtWidgets.QPushButton("Close")
         
     def create_layouts(self):
@@ -89,6 +99,7 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         button_layout_bot.addWidget(self.close_button)
             
         main_layout = QtWidgets.QVBoxLayout(self)
+        main_layout.addWidget(self.status_bar)
         main_layout.addLayout(button_layout_choose)
         main_layout.addLayout(fixed_keyframes_layout)
         main_layout.addLayout(extreme_layout)
@@ -107,6 +118,27 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         self.n_extreme_keyframes_slider.valueChanged.connect(self.handle_extreme_slider_moved)
         self.n_breakdown_keyframes_slider.valueChanged.connect(self.handle_breakdown_slider_moved)
         self.close_button.clicked.connect(self.close)
+
+    def set_status(self, message, color_as_hex):
+        font_hex = "%02x%02x%02x" % (55, 55, 55)
+        self.status_bar.setText("> " + message)
+        self.status_bar.setStyleSheet("background: #%s; color: #%s" % (color_as_hex, font_hex))
+        
+    def report_error(self, message):
+        self.set_status(message, "F20505")
+        altmaya.Report.error(message)
+        
+    def report_warning(self, message):
+        self.set_status(message, "F2BE22")
+        altmaya.Report.warning(message)
+
+    def report_todo(self, message):
+        self.set_status(message, "F2BE22")
+        altmaya.Report.message(message)
+        
+    def report_message(self, message):
+        self.set_status(message, "446644")
+        altmaya.Report.message(message)
     
     def open_choose_for_selection_dialog(self):
         self.select_attr_gui.update_table()
@@ -124,7 +156,7 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
     def select(self, error_type, fixed_keyframes):
         attr_indices = self.select_attr_gui.read_values_as_indices()
         if len(attr_indices) == 0:
-            altmaya.Report.error("You must choose at least one attributes for selection")
+            self.report_error("You must choose at least one attributes for selection")
             return
 
         start = altmaya.Timeline.get_start()
@@ -147,10 +179,10 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
             max_k = max(fixed_keyframes)
             min_k = min(fixed_keyframes)
             if max_k > end:
-                altmaya.Report.error("a fixed keyframe greater than the last frame (fixed=%2.2f, last=%2.2f)" % (max_k, end))
+                self.report_error("a fixed keyframe greater than the last frame (fixed=%2.2f, last=%2.2f)" % (max_k, end))
                 return
             elif min_k < start:
-                altmaya.Report.error("there is a fixed keyframe smaller than the first keyframe (fixed=%2.2f, first=%2.2f)" % (min_k, start))
+                self.report_error("there is a fixed keyframe smaller than the first keyframe (fixed=%2.2f, first=%2.2f)" % (min_k, start))
                 return
 
         fixed_keyframes = [v - start for v in fixed_keyframes]
@@ -206,14 +238,14 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         
     def handle_extreme_slider_moved(self):
         if len(self.extreme_selections.keys()) == 0:
-            altmaya.Report.error("Please run the selection before using this slider")
+            self.report_error("Please run the selection before using this slider")
             return
             
         n = int(self.n_extreme_keyframes_slider.value())
         self.n_extreme_keyframes_edit.setText(str(n))
         
         if n not in self.extreme_selections.keys():
-            altmaya.Report.error("No selection of %d keyframes was found?" % n)
+            self.report_error("No selection of %d keyframes was found?" % n)
             return
             
         selection = self.extreme_selections[n]["selection"]
@@ -221,14 +253,14 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         
     def handle_breakdown_slider_moved(self):
         if len(self.breakdown_selections.keys()) == 0:
-            altmaya.Report.error("Please run the selection before using this slider")
+            self.report_error("Please run the selection before using this slider")
             return
             
         n = int(self.n_breakdown_keyframes_slider.value())
         self.n_breakdown_keyframes_edit.setText(str(n))
         
         if n not in self.breakdown_selections.keys():
-            altmaya.Report.error("No selection of %d keyframes was found?" % n)
+            self.report_error("No selection of %d keyframes was found?" % n)
             return
             
         selection = self.breakdown_selections[n]["selection"]
@@ -243,12 +275,12 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
 
         attr_indices = self.reduce_attr_gui.read_values_as_indices()
         if len(attr_indices) == 0:
-            altmaya.Report.error("You must choose at least one attributes for reduction")
+            self.report_error("You must choose at least one attributes for reduction")
             return
             
         attr_indices = [ v for v in attr_indices if v.has_keyframes() ]
         if len(attr_indices) == 0:
-            altmaya.Report.error("No keyframes found on the selected attributes?")
+            self.report_error("No keyframes found on the selected attributes?")
             return
         
         n_keyframes = len(keyframes)
@@ -276,7 +308,7 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
                 )
 
                 if len(result) % 8 != 0:
-                    altmaya.Report.error("Invalid result given by reduction command for %s?" % AttributeIndex(ai.obj, ai.attr))
+                    self.report_error("Invalid result given by reduction command for %s?" % AttributeIndex(ai.obj, ai.attr))
                     return 
               
                 n_cubics = len(result) / 8
@@ -300,14 +332,14 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
                     altmaya.Animation.set_keyframe_outgoing_tangent(ai, e, cubic.weightRight(), cubic.angleRight() * 180.0 / math.pi)
         
         except RuntimeError as e:
-            altmaya.Report.error("Failed reduce: " + str(e))
+            self.report_error("Failed reduce: " + str(e))
             
         altmaya.History.finish_undo_block()
         
     def reduce_using_extremes_only(self):
         n = int(self.n_extreme_keyframes_slider.value())
         if n not in self.breakdown_selections.keys():
-            maya.Report.error("No extreme keyframes found for n=%d, did you run extreme selection?" % n)
+            self.report_error("No extreme keyframes found for n=%d, did you run extreme selection?" % n)
             return
         keyframes = self.extreme_selections[n]["selection"]
         self.reduce(keyframes)
@@ -315,7 +347,7 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
     def reduce_using_breakdowns_as_well(self):
         n = int(self.n_breakdown_keyframes_slider.value())
         if n not in self.breakdown_selections.keys():
-            maya.Report.error("No breakdown keyframes found for n=%d, did you run breakdown selection?" % n)
+            self.report_error("No breakdown keyframes found for n=%d, did you run breakdown selection?" % n)
             return
         keyframes = self.breakdown_selections[n]["selection"]
         self.reduce(keyframes)
