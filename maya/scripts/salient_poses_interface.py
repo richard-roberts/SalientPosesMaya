@@ -1,4 +1,5 @@
 import math 
+import re
 
 import maya
 
@@ -162,7 +163,8 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         fixed_keyframes = []
         try:
             fixed_keyframes_str = self.fixed_keyframes_edit.text()
-            fixed_keyframes = sorted([int(v) for v in fixed_keyframes_str.split(",")])
+            fixed_keyframes_raw = re.findall("[,\s]?([0-9.]+)[,\s]?", fixed_keyframes_str)
+            fixed_keyframes = sorted([float(v) for v in fixed_keyframes_raw])
         except ValueError:
             pass
         self.extreme_selections = self.select("line", fixed_keyframes)
