@@ -178,7 +178,9 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
             fixed_keyframes = sorted([float(v) for v in fixed_keyframes_raw])
         except ValueError:
             pass
-        self.extreme_selections = self.select("line", fixed_keyframes)
+        ret = self.select("line", fixed_keyframes)
+        if ret is None: return
+        self.extreme_selections = ret
         self.n_extreme_keyframes_slider.setMinimum(min(self.extreme_selections.keys()))
         self.n_extreme_keyframes_slider.setMaximum(max(self.extreme_selections.keys()))
         n = min(self.extreme_selections.keys())
@@ -191,7 +193,9 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
     def select_breakdowns(self):
         n = int(self.n_extreme_keyframes_slider.value())
         fixed_keyframes = sorted(self.extreme_selections[n]["selection"])
-        self.breakdown_selections = self.select("curve", fixed_keyframes)
+        ret = self.select("curve", fixed_keyframes)
+        if ret is None: return
+        self.breakdown_selections = ret
         self.n_breakdown_keyframes_slider.setMinimum(min(self.breakdown_selections.keys()))
         self.n_breakdown_keyframes_slider.setMaximum(max(self.breakdown_selections.keys()))
         n = min(self.breakdown_selections.keys())
