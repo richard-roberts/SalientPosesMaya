@@ -141,6 +141,7 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
 
         n_frames = end - start + 1
         max_keyframes = int(n_frames * 0.2) #int(self.max_keyframes_edit.text())
+        fixed_keyframes = [v - start for v in fixed_keyframes]
         result = maya.cmds.salientSelect(error_type, start, end, max_keyframes, fixed_keyframes, data)
         
         selections = {}
@@ -150,7 +151,10 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
                 error = float(errorString)
                 selection = [int(v) for v in selectionString.split(",")]
                 n_keyframes = len(selection)
-                selections[n_keyframes] = { "selection" : selection, "error" : error }
+                selections[n_keyframes] = { 
+                    "selection" : [v + start for v in selection],
+                    "error" : error
+                }
         
         return selections
         
@@ -214,6 +218,12 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         altmaya.Animation.ghost_keyframes(selection)
         
     def reduce(self, keyframes):
+        """
+        Warning: 
+            don't shift keyframes to start from zero except for the actual call,
+            otherwise this incorrectly offsets the read, cut, and rekeying steps
+        """
+
         attr_indices = self.reduce_attr_gui.read_values_as_indices()
         if len(attr_indices) == 0:
             altmaya.Report.error("You must choose at least one attributes for reduction")
@@ -241,7 +251,13 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
                     data.append(ai.read_at_time(f))
                     f += 1.0
                     
-                result = maya.cmds.salientReduce(ai.obj, ai.attr, keyframes, data)
+                result = maya.cmds.salientReduce(
+                    ai.obj,
+                    ai.attr, 
+                    [v - keyframes[0] for v in keyframes], # only 
+                    data
+                )
+
                 if len(result) % 8 != 0:
                     altmaya.Report.error("Invalid result given by reduction command for %s?" % AttributeIndex(ai.obj, ai.attr))
                     return 
@@ -273,12 +289,12 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         
     def reduce_using_extremes_only(self):
         n = int(self.n_extreme_keyframes_slider.value())
-        keyframes = [v + altmaya.Timeline.get_start() for v in self.extreme_selections[n]["selection"]]
+        keyframes = self.extreme_selections[n]["selection"]
         self.reduce(keyframes)
         
     def reduce_using_breakdowns_as_well(self):
         n = int(self.n_breakdown_keyframes_slider.value())
-        keyframes = [v + altmaya.Timeline.get_start() for v in self.breakdown_selections[n]["selection"]]
+        keyframes = self.breakdown_selections[n]["selection"]
         self.reduce(keyframes)
         
         
