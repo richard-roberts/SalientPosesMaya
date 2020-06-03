@@ -148,11 +148,6 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         self.reduce_attr_gui.update_table()
         self.reduce_attr_gui.show()
         
-    def read_n_frames(self):
-        start = Timeline.get_start()
-        end = Timeline.get_end()
-        return end - start + 1
-         
     def select(self, error_type, fixed_keyframes):
         attr_indices = self.select_attr_gui.read_values_as_indices()
         if len(attr_indices) == 0:
