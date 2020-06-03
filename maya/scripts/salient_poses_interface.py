@@ -435,7 +435,7 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
             [k for k in selection if k not in extremes]
         )
         
-    def reduce(self, keyframes):
+    def reduce(self, keyframes, breakdowns):
         """
         Warning: 
             don't shift keyframes to start from zero except for the actual call,
@@ -488,8 +488,9 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
 
                 # Set new keyframe values
                 for i in range(n_keyframes - 1):
-                    altmaya.Animation.add_keyframe(ai, keyframes[i], cubics[i].p1y)
-                altmaya.Animation.add_keyframe(ai, keyframes[-1], cubics[-1].p4y)
+                    is_breakdown = keyframes[i] not in breakdowns
+                    altmaya.Animation.add_keyframe(ai, keyframes[i], cubics[i].p1y, is_breakdown)
+                altmaya.Animation.add_keyframe(ai, keyframes[-1], cubics[-1].p4y, False)
                 
                 # Configure keyframes based on fitted cubics
                 altmaya.Animation.convert_to_free_splines(ai)
@@ -507,19 +508,23 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         
     def reduce_using_extremes_only(self):
         n = int(self.n_extreme_keyframes_slider.value())
-        if n not in self.breakdown_selections.keys():
+        if n not in self.extreme_selections.keys():
             self.report_error("No extreme keyframes found for n=%d, did you run extreme selection?" % n)
             return
         keyframes = self.extreme_selections[n]["selection"]
         self.reduce(keyframes)
         
     def reduce_using_breakdowns_as_well(self):
-        n = int(self.n_breakdown_keyframes_slider.value())
+        n_e = int(self.n_extreme_keyframes_slider.value())
+        n_b = int(self.n_breakdown_keyframes_slider.value())
+        n = n_e + n_b
         if n not in self.breakdown_selections.keys():
             self.report_error("No breakdown keyframes found for n=%d, did you run breakdown selection?" % n)
             return
+        extremes = self.extreme_selections[n_e]["selection"]
         keyframes = self.breakdown_selections[n]["selection"]
-        self.reduce(keyframes)
+        breakdowns = [v for v in keyframes if v not in extremes]
+        self.reduce(keyframes, breakdowns)
         
         
 if __name__ == "__main__":    
