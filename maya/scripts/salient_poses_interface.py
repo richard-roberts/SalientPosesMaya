@@ -1,3 +1,4 @@
+import json
 import math 
 import re
 
@@ -34,7 +35,6 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
     def __init__(self):
         super(SalientPosesGUI, self).__init__("Salient Poses")
         
-        self.fixed_keyframes = []
         self.extreme_selections = {}
         self.breakdown_selections = {}
         self.current_selection = []
@@ -68,6 +68,8 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         self.fixed_keyframes_button_add_now = QtWidgets.QPushButton("Add Current")
         self.fixed_keyframes_button_add_prompt = QtWidgets.QPushButton("Add (Prompt)")
         self.fixed_keyframes_button_delete = QtWidgets.QPushButton("Delete")
+        self.fixed_keyframes_button_export = QtWidgets.QPushButton("Export")
+        self.fixed_keyframes_button_import = QtWidgets.QPushButton("Import")
         
         # Extreme section
         self.choose_extreme_attr_button = QtWidgets.QPushButton("Choose Extreme Attributes")
@@ -110,6 +112,8 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         l2.addWidget(self.fixed_keyframes_button_add_now)
         l2.addWidget(self.fixed_keyframes_button_add_prompt)
         l2.addWidget(self.fixed_keyframes_button_delete)
+        l2.addWidget(self.fixed_keyframes_button_export)
+        l2.addWidget(self.fixed_keyframes_button_import)
         l.addLayout(l2)
         main.addLayout(l)
         
@@ -167,6 +171,8 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         self.fixed_keyframes_button_add_now.clicked.connect(self.add_fixed_via_current)
         self.fixed_keyframes_button_add_prompt.clicked.connect(self.add_fixed_via_prompt)
         self.fixed_keyframes_button_delete.clicked.connect(self.deleted_fixed)
+        self.fixed_keyframes_button_export.clicked.connect(self.export_fixed)
+        self.fixed_keyframes_button_import.clicked.connect(self.import_fixed)
         
         # Select section
         self.choose_extreme_attr_button.clicked.connect(self.open_choose_for_extreme_dialog)
@@ -218,34 +224,40 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         self.reduce_attr_gui.update_table()
         self.reduce_attr_gui.show()
         
-    def update_table(self):
-        self.fixed_keyframes_table.setRowCount(len(self.fixed_keyframes))
-        for (i, (frame, name, notes)) in enumerate(self.fixed_keyframes):
-            
-            # For frame number
-            item = QtWidgets.QTableWidgetItem()
-            item.setText(str(frame))
-            self.fixed_keyframes_table.setItem(i, 0, item)
-            
-            # For name
-            item = QtWidgets.QTableWidgetItem()
-            item.setText(name)
-            self.fixed_keyframes_table.setItem(i, 1, item)
-            
-            # For notes
-            item = QtWidgets.QTableWidgetItem()
-            item.setText(notes)
-            self.fixed_keyframes_table.setItem(i, 2, item)
+    def read_fixed_keyframes(self):
+        keyframes = []
+        for ix in range(self.fixed_keyframes_table.rowCount()):
+            item = self.fixed_keyframes_table.item(ix, 0)
+            k = int(item.text())
+            keyframes.append(k)
+        return keyframes
 
     def add_fixed_at(self, frame, name="", notes=""):
-        fixed_frames = [v[0] for v in self.fixed_keyframes]
+        fixed_frames = self.read_fixed_keyframes()
         if frame in fixed_frames:
             self.report_error("%s is already in fixed keyframes" % frame)
             return
-        self.fixed_keyframes.append((frame, name, notes))
-        self.fixed_keyframes = sorted(self.fixed_keyframes, key=lambda t: t[0])
         
-        self.update_table()
+        ix = self.fixed_keyframes_table.rowCount()
+        self.fixed_keyframes_table.setRowCount(self.fixed_keyframes_table.rowCount() + 1)
+            
+        # For frame number
+        item = QtWidgets.QTableWidgetItem()
+        item.setData(QtCore.Qt.EditRole, frame)
+        self.fixed_keyframes_table.setItem(ix, 0, item)
+        
+        # For name
+        item = QtWidgets.QTableWidgetItem()
+        item.setText(name)
+        self.fixed_keyframes_table.setItem(ix, 1, item)
+        
+        # For notes
+        item = QtWidgets.QTableWidgetItem()
+        item.setText(notes)
+        self.fixed_keyframes_table.setItem(ix, 2, item)
+        
+        self.fixed_keyframes_table.sortItems(0, QtCore.Qt.AscendingOrder)
+
         self.lock_extreme_slider()
         self.lock_breakdown_slider()
         self.report_message("Added fixed keyframe at %d" % frame)
@@ -267,18 +279,37 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
         
     def deleted_fixed(self):
         sel = self.fixed_keyframes_table.selectionModel().selectedRows(0)
-        for s in sel:            
-            r = s.row()
-            frame = int(self.fixed_keyframes_table.item(r, 0).text())
-            name = self.fixed_keyframes_table.item(r, 1).text()
-            notes = self.fixed_keyframes_table.item(r, 2).text()
-            self.fixed_keyframes.remove((frame, name, notes))
-        self.fixed_keyframes = sorted(self.fixed_keyframes, key=lambda t: t[0])
+        while len(sel) != 0:
+            self.fixed_keyframes_table.removeRow(sel[0].row())
+            sel = self.fixed_keyframes_table.selectionModel().selectedRows(0)
         
-        self.update_table()
         self.lock_extreme_slider()
         self.lock_breakdown_slider()
         self.report_message("Deleted fixed keyframes")
+        
+    def export_fixed(self):
+        filepath = altmaya.Ask.choose_file_to_save_json(self, "Choose JSON file to save fixed frames to")
+        if not filepath:
+            self.report_warning("Export fixed keyframes cancelled")
+            
+        data = []
+        for ix in range(self.fixed_keyframes_table.rowCount()):
+            frame = self.fixed_keyframes_table.item(ix, 0).data(QtCore.Qt.EditRole)
+            name = self.fixed_keyframes_table.item(ix, 1).text()
+            notes = self.fixed_keyframes_table.item(ix, 2).text()
+            data.append((frame, name, notes))
+        
+        with open(filepath, "w") as f:
+            f.write(json.dumps(data))
+            
+    def import_fixed(self):
+        filepath = altmaya.Ask.choose_file_to_open_json(self, "Choose JSON file to load fixed frames from")
+        if not filepath:
+            self.report_warning("Import fixed keyframes cancelled")
+        with open(filepath, "r") as f:
+            data = json.loads(f.read())
+            for (frame, name, notes) in data:
+                self.add_fixed_at(frame, name=name, notes=notes)
         
     def lock_extreme_slider(self):
         self.n_extreme_keyframes_slider.setEnabled(False)
@@ -337,7 +368,7 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
             self.report_error("You must choose at least one attributes for selection")
             return
             
-        ret = self.select(attr_indices, "line", [v[0] for v in self.fixed_keyframes])
+        ret = self.select(attr_indices, "line", self.read_fixed_keyframes())
         if ret is None: self.report_error("Something went very wrong! Please post an issue at https://github.com/richard-roberts/SalientPosesMaya/issues")
         
         self.extreme_selections = ret
