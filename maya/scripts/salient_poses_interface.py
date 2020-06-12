@@ -512,7 +512,7 @@ class SalientPosesGUI(altmaya.StandardMayaWindow):
             self.report_error("No extreme keyframes found for n=%d, did you run extreme selection?" % n)
             return
         keyframes = self.extreme_selections[n]["selection"]
-        self.reduce(keyframes)
+        self.reduce(keyframes, [])
         
     def reduce_using_breakdowns_as_well(self):
         n_e = int(self.n_extreme_keyframes_slider.value())
